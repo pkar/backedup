@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -46,6 +47,16 @@ func printFs(fs afero.Fs, dir string) {
 	})
 }
 
+func getFs(fs afero.Fs, dir string) []string {
+	dirtree := []string{}
+	afero.Walk(fs, dir, func(path string, info os.FileInfo, err error) error {
+		dirtree = append(dirtree, path)
+		return nil
+	})
+	sort.Strings(dirtree)
+	return dirtree
+}
+
 func TestNew(t *testing.T) {
 	var stdin bytes.Buffer
 	var logger bytes.Buffer
@@ -68,7 +79,7 @@ func TestNew(t *testing.T) {
 func checkNewSymlink(t *testing.T, fs *afero.OsFs, path string) {
 	exists, err := afero.Exists(fs, path)
 	Ok(t, err)
-	Equals(t, true, exists, path)
+	Equals(t, true, exists, "path not found "+path)
 	// symlink should be there pointing to moved file
 	fi, _, err := fs.LstatIfPossible(path)
 	Ok(t, err)
@@ -77,7 +88,18 @@ func checkNewSymlink(t *testing.T, fs *afero.OsFs, path string) {
 	}
 }
 
-func TestBackup(t *testing.T) {
+func checkNotSymlink(t *testing.T, fs *afero.OsFs, path string) {
+	exists, err := afero.Exists(fs, path)
+	Ok(t, err)
+	Equals(t, true, exists, "path not found "+path)
+	// symlink should be there pointing to moved file
+	fi, _, err := fs.LstatIfPossible(path)
+	Ok(t, err)
+	if fi.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("%s is a symlink", path)
+	}
+}
+func TestBackupRestoreUninstall(t *testing.T) {
 	var stdin bytes.Buffer
 	// var logger bytes.Buffer
 	logger := os.Stderr
@@ -103,7 +125,7 @@ func TestBackup(t *testing.T) {
 	filehome := filepath.Join(tmpDir, "home/.filehome")
 	err = afero.WriteFile(fs, filehome, []byte("file1 contents"), 0644)
 	Ok(t, err)
-	dirhome := filepath.Join(tmpDir, "home/.dirhome/somefile")
+	dirhome := filepath.Join(tmpDir, "home/.dirhome/somedir")
 	err = fs.MkdirAll(dirhome, 0755)
 	Ok(t, err)
 
@@ -130,7 +152,8 @@ paths:
   - %s
   - %s
   - %s
-  - %s`, backupTo, dir, dirhome, filehome, file1, file2, symlink)
+  - %s
+  - %s`, backupTo, dir, dirhome, filehome, file1, file2, symlink, confPath)
 
 	err = afero.WriteFile(fs, confPath, []byte(cfg), 0644)
 	Ok(t, err)
@@ -168,5 +191,36 @@ paths:
 	Ok(t, err)
 	Equals(t, true, exists)
 	checkNewSymlink(t, fs.(*afero.OsFs), file2)
-	printFs(fs, tmpDir)
+
+	// test restore by removing symlinks and running Restore
+	err = os.Remove(dir)
+	Ok(t, err)
+	err = os.Remove(dirhome)
+	Ok(t, err)
+	err = os.Remove(filehome)
+	Ok(t, err)
+	err = os.Remove(file1)
+	Ok(t, err)
+	err = os.Remove(file2)
+	Ok(t, err)
+
+	err = b.Restore()
+	Ok(t, err)
+
+	checkNewSymlink(t, fs.(*afero.OsFs), dir)
+	checkNewSymlink(t, fs.(*afero.OsFs), dirhome)
+	checkNewSymlink(t, fs.(*afero.OsFs), filehome)
+	checkNewSymlink(t, fs.(*afero.OsFs), file1)
+	checkNewSymlink(t, fs.(*afero.OsFs), file2)
+	checkNewSymlink(t, fs.(*afero.OsFs), confPath)
+
+	err = b.Uninstall()
+	Ok(t, err)
+
+	checkNotSymlink(t, fs.(*afero.OsFs), dir)
+	checkNotSymlink(t, fs.(*afero.OsFs), dirhome)
+	checkNotSymlink(t, fs.(*afero.OsFs), filehome)
+	checkNotSymlink(t, fs.(*afero.OsFs), file1)
+	checkNotSymlink(t, fs.(*afero.OsFs), file2)
+	checkNotSymlink(t, fs.(*afero.OsFs), confPath)
 }

@@ -1,16 +1,18 @@
 # backedup
 
-WIP: at this point use this in a non important container.
+alpha: at this point use this in a non important environment.
 
 Backs up config files. Because a bash script would be boring,
 mackup is in python, so why not use Go.
 The default path is for Dropbox.
 
-Create a file ~/.backedup.yaml with the following format.
+Create a file ~/.backedup.yaml with the following format. Use
+$HOME for any home directory paths.
 
 ```
 backup_to: $HOME/Dropbox/backedup
 paths:
+	- $HOME/.backedup.yaml
 	- $HOME/.ackrc
 	- $HOME/.aws
 	- $HOME/.backedup.yaml
@@ -34,5 +36,5 @@ Restore a previously configured setup. This will look in ~/Dropbox/backedup for
 a .backedup.yaml, and if one isn't there it will create a default one ~/.backedup.yaml.
 
 ```
-backedup restore
+backedup -restore
 ```

@@ -18,7 +18,9 @@ const (
 )
 
 var (
-	ErrNoDefaultConfig         = errors.New("no default config")
+	// ErrNoDefaultConfig if the default config is not found
+	ErrNoDefaultConfig = errors.New("no default config")
+	// ErrDefaultConfigNotCreated for errors creating the default config
 	ErrDefaultConfigNotCreated = errors.New("config not created")
 )
 
@@ -162,11 +164,14 @@ func (b *Backedup) Restore() error {
 		return err
 	}
 	if !exists {
-		return fmt.Errorf("%s does not exist\n", b.Config.BackupTo)
+		return fmt.Errorf("%s does not exist", b.Config.BackupTo)
+	}
+	backupHomeDir := filepath.Join(b.Config.BackupTo, backupHomeDirName)
+	if err := b.fs.MkdirAll(backupHomeDir, 0755); err != nil {
+		return err
 	}
 PATH_LOOP:
 	for _, path := range b.Config.Paths {
-		backupPath := filepath.Join(b.Config.BackupTo, path)
 		exists, err := afero.Exists(b.fs, b.Config.BackupTo)
 		if err != nil {
 			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
@@ -177,6 +182,24 @@ PATH_LOOP:
 			continue PATH_LOOP
 		}
 
+		isHomeDir := false
+		if strings.HasPrefix(path, b.homeDir) {
+			isHomeDir = true
+		}
+
+		backupPath := ""
+		if isHomeDir {
+			backupPath = filepath.Join(backupHomeDir, strings.Replace(filepath.Dir(path), b.homeDir, "", -1))
+		} else {
+			backupPath = filepath.Join(b.Config.BackupTo, path)
+		}
+
+		if err := b.fs.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
+			continue PATH_LOOP
+		}
+
+		fmt.Println("creating symlink", backupPath, path)
 		// create the symlink from the backup path to path
 		if err := os.Symlink(backupPath, path); err != nil {
 			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
@@ -195,7 +218,11 @@ func (b *Backedup) Uninstall() error {
 		return err
 	}
 	if !exists {
-		return fmt.Errorf("%s does not exist\n", b.Config.BackupTo)
+		return fmt.Errorf("%s does not exist", b.Config.BackupTo)
+	}
+	backupHomeDir := filepath.Join(b.Config.BackupTo, backupHomeDirName)
+	if err := b.fs.MkdirAll(backupHomeDir, 0755); err != nil {
+		return err
 	}
 
 PATH_LOOP:
@@ -218,17 +245,47 @@ PATH_LOOP:
 			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s file exists, not symlink\n", path)))
 			continue PATH_LOOP
 		}
-
 		// remove the current path symlink
 		if err := os.Remove(path); err != nil {
 			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
 			continue PATH_LOOP
 		}
+
 		// move backed up data to path
-		backupPath := filepath.Join(b.Config.BackupTo, path)
-		if err := os.Rename(backupPath, path); err != nil {
+		isHomeDir := false
+		if strings.HasPrefix(path, b.homeDir) {
+			isHomeDir = true
+		}
+		backupPath := ""
+		if isHomeDir {
+			backupPath = filepath.Join(backupHomeDir, strings.Replace(path, b.homeDir, "", -1))
+		} else {
+			backupPath = filepath.Join(b.Config.BackupTo, path)
+		}
+
+		if fsOs, ok := b.fs.(*afero.OsFs); ok {
+			fi, _, err = fsOs.LstatIfPossible(backupPath)
+		} else {
+			fi, err = os.Lstat(backupPath)
+		}
+		if err != nil {
 			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
 			continue PATH_LOOP
+		}
+
+		if err := b.fs.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
+			continue PATH_LOOP
+		}
+
+		if fi.IsDir() {
+			if err := DirCopy(backupPath, path); err != nil {
+				b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
+			}
+		} else {
+			if err := FileCopy(backupPath, path); err != nil {
+				b.logger.Write([]byte(fmt.Sprintf("ERRO: %s %s\n", path, err)))
+			}
 		}
 	}
 
