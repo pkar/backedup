@@ -22,13 +22,12 @@ paths:
   - $HOME/.bash_history
   - $HOME/.bash_profile
   - $HOME/.bashrc
-  - $HOME/.curlrc
   - $HOME/.dlv
   - $HOME/.dockercfg
   - $HOME/.docker
   - $HOME/.gitignore
   - $HOME/.gitconfig
-  - $HOME/.oh-my-zsh
+  - $HOME/.ipfs
   - $HOME/.m2/settings.xml
   - $HOME/.m2/toolchains.xml
   - $HOME/.netrc
@@ -36,27 +35,15 @@ paths:
   - $HOME/.ron
   - $HOME/.ssh
   - $HOME/.tmux.conf
+  - $HOME/.terraform.d
   - $HOME/.vim
   - $HOME/.vim-go
   - $HOME/.vimrc
-  - $HOME/.wget-hsts
   - $HOME/.z
   - $HOME/.zshrc
   - $HOME/.zprofile
   - $HOME/.zlogin
   - $HOME/.zlogout
-  - /Library/Application Support/Sequel Pro/Data
-  - /Library/Preferences/com.sequelpro.SequelPro.plist
-  - /Library/Preferences/com.googlecode.iterm2.plist
-  - /Library/Preferences/com.apple.dt.Xcode.plist
-  - /Library/Application Support/Developer/Shared/Xcode/Plug-ins
-  - /Library/Developer/Xcode/UserData/CodeSnippets
-  - /Library/Developer/Xcode/UserData/FontAndColorThemes
-  - /Library/Developer/Xcode/UserData/KeyBindings
-  - /Library/Developer/Xcode/UserData/Debugger
-  - /Library/Developer/Xcode/UserData/xcdebugger
-  - /Library/Developer/Xcode/UserData/SearchScopes.xcsclist
-  - /Library/Developer/Xcode/Templates
 `
 )
 
