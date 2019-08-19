@@ -1,5 +1,8 @@
 # backedup
 
+[![CircleCI](https://circleci.com/gh/pkar/backedup/tree/master.svg?style=svg)](https://circleci.com/gh/pkar/backedup/tree/master)
+
+
 alpha: at this point use this in a non important environment.
 
 Backs up config files. Because a bash script would be boring,
